@@ -164,12 +164,22 @@ jobs:
           MSIX_PFX_PASSWORD: ${{ secrets.MSIX_PFX_PASSWORD }}
         run: windows/packaging/msix/build-msix.ps1 -Version $env:version
 
+      - name: Prepare release notes
+        if: ${{ github.event.inputs.tag != '' }}
+        shell: pwsh
+        run: |
+          $tpl = Get-Content "windows/packaging/msix/RELEASE-NOTES.md" -Raw
+          $notes = $tpl.Replace('{{VERSION}}', $env:version).TrimEnd()
+          Set-Content -Path "release-notes.md" -Value $notes -Encoding utf8NoBOM
+          Write-Host $notes
+
       - name: Release
         if: ${{ github.event.inputs.tag != '' }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: ${{ github.event.inputs.tag }}
+          body_path: release-notes.md
           files: |
             PiliPlus_windows_*_arm64_portable.zip
             PiliPlus-Win-Setup/PiliPlus_windows_*_arm64_setup.exe
