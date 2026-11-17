@@ -73,9 +73,12 @@ function Save-Logo {
 }
 
 # Ratios: the plated logo sits on a coloured plate, so it needs breathing room.
-# The unplated one replaces the plate, so it may fill the slot almost edge to edge.
-$platedFill = 0.68
-$unplatedFill = 0.88
+# The unplated one replaces the plate entirely, and Windows draws it at its natural
+# size without scaling up - so anything below 1.0 reads as "smaller than every other
+# app in the taskbar" (the logo is a circle, and its neighbours' circles fill the
+# whole slot). 1.0 makes the circle exactly as wide as the slot.
+$platedFill = 0.75
+$unplatedFill = 1.0
 
 # --- small-icon surfaces: taskbar, Start menu list, Alt-Tab, title bar -----------
 $targetSizes = 16, 20, 24, 30, 32, 36, 40, 44, 48, 60, 64, 72, 80, 96, 256
@@ -94,7 +97,7 @@ foreach ($scale in 100, 125, 150, 200, 400) {
     Save-Logo -Width ([int](150 * $f)) -Height ([int](150 * $f)) -Fill 0.62      -Name "Square150x150Logo.scale-$scale.png"
     Save-Logo -Width ([int](310 * $f)) -Height ([int](310 * $f)) -Fill 0.62      -Name "Square310x310Logo.scale-$scale.png"
     Save-Logo -Width ([int](310 * $f)) -Height ([int](150 * $f)) -Fill 0.62      -Name "Wide310x150Logo.scale-$scale.png"
-    Save-Logo -Width ([int](50 * $f))  -Height ([int](50 * $f))  -Fill 0.68      -Name "StoreLogo.scale-$scale.png"
+    Save-Logo -Width ([int](50 * $f))  -Height ([int](50 * $f))  -Fill $platedFill -Name "StoreLogo.scale-$scale.png"
 }
 
 # --- plain, scale-agnostic base images referenced by the manifest ----------------
