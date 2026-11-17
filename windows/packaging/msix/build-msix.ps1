@@ -33,7 +33,10 @@ param(
 
     # Signing material. Left empty -> the package is packed but stays unsigned.
     [string]$PfxBase64 = $env:MSIX_PFX_BASE64,
-    [string]$PfxPassword = $env:MSIX_PFX_PASSWORD
+    [string]$PfxPassword = $env:MSIX_PFX_PASSWORD,
+
+    # Opt out of the "signing is mandatory" rule; only for local packing tests.
+    [switch]$AllowUnsigned
 )
 
 $ErrorActionPreference = 'Stop'
@@ -137,11 +140,24 @@ finally {
 }
 
 # --- sign ---------------------------------------------------------------------
+# An unsigned package is useless: Windows rejects it on install. So a missing
+# certificate is a hard failure by default, not a warning that ships a broken
+# release. Pass -AllowUnsigned if you really only want to test the packing step.
 $signed = $false
 if ([string]::IsNullOrWhiteSpace($PfxBase64) -or [string]::IsNullOrWhiteSpace($PfxPassword)) {
-    Write-Warning "MSIX_PFX_BASE64 / MSIX_PFX_PASSWORD are not configured."
-    Write-Warning "The .msix is packed but UNSIGNED - Windows will refuse to install it."
-    Write-Warning "Add both repository secrets and re-run to get an installable package."
+    if (-not $AllowUnsigned) {
+        throw @"
+MSIX_PFX_BASE64 / MSIX_PFX_PASSWORD are not available, so the package cannot be signed.
+Windows refuses to install an unsigned .msix, so this build would be useless.
+
+Most likely cause: the calling workflow did not forward the secrets -
+a reusable workflow started with ``uses:`` only receives them when the caller
+declares ``secrets: inherit``.
+
+Pass -AllowUnsigned if you deliberately want an unsigned package for testing.
+"@
+    }
+    Write-Warning "Packing UNSIGNED because -AllowUnsigned was given."
 }
 else {
     $pfxPath = Join-Path ([System.IO.Path]::GetTempPath()) ("piliplus-signing-" + [guid]::NewGuid().ToString('N') + ".pfx")

@@ -21,5 +21,8 @@ jobs:
         name: Release Windows ARM64
         uses: ./.github/workflows/win_arm64.yml
         permissions: write-all
+        # 关键：被调用的 reusable workflow 拿不到仓库 secrets，除非显式 inherit。
+        # 少了这行，MSIX 那一步会静默降级成「只打包不签名」。
+        secrets: inherit
         with:
             tag: ${{ github.event.inputs.tag }}
