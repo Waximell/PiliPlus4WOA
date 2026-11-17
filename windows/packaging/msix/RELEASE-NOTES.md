@@ -1,4 +1,4 @@
-此分发随上游 master 编译，为 {{VERSION}}
+此分发随上游 main 编译，为 {{VERSION}}
 
 本仓库未对项目源码做调整，仅添加并运行 WoA Workflow。
 

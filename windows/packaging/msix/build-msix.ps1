@@ -118,10 +118,11 @@ try {
         Replace('{{VERSION}}', $msixVersion).
         Replace('{{EXECUTABLE}}', $Executable)
 
-    if ($manifest -match '\{\{[A-Z_]+\}\}') {
+    # Ignore XML comments: documentation inside the template must not trip this check.
+    $check = [regex]::Replace($manifest, '<!--.*?-->', '', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    if ($check -match '\{\{[A-Z_]+\}\}') {
         throw "Unreplaced placeholder left in the manifest: $($Matches[0])"
     }
-
     # makeappx requires UTF-8 (with or without BOM) for the manifest.
     [System.IO.File]::WriteAllText((Join-Path $stage 'AppxManifest.xml'), $manifest, (New-Object System.Text.UTF8Encoding $false))
 

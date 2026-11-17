@@ -2,8 +2,8 @@
 <!--
   MSIX manifest template for PiliPlus (Windows on ARM64).
 
-  Packed by windows/packaging/msix/build-msix.ps1, which replaces the {{PLACEHOLDERS}}.
-  Do not ship this file into the package as-is.
+  Packed by windows/packaging/msix/build-msix.ps1, which replaces the placeholders
+  below before handing the file to makeappx. Do not ship this file as-is.
 
   ProcessorArchitecture="arm64" is what makes the produced .msix an ARM64 package.
   The payload is the output of `flutter build windows` on the windows-11-arm runner,
