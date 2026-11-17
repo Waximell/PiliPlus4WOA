@@ -173,8 +173,11 @@ jobs:
           MSIX_PFX_PASSWORD: ${{ secrets.MSIX_PFX_PASSWORD }}
         run: windows/packaging/msix/build-msix.ps1 -Version $env:version
 
+      # 用 inputs.tag 而不是 github.event.inputs.tag：后者取的是「调用方事件」里的
+      # 输入，被 upstream-sync.yml 以 workflow_call 调进来时那个值是空的，会导致
+      # 构建成功但不发 Release。
       - name: Prepare release notes
-        if: ${{ github.event.inputs.tag != '' }}
+        if: ${{ inputs.tag != '' }}
         shell: pwsh
         run: |
           $tpl = Get-Content "windows/packaging/msix/RELEASE-NOTES.md" -Raw
@@ -183,11 +186,11 @@ jobs:
           Write-Host $notes
 
       - name: Release
-        if: ${{ github.event.inputs.tag != '' }}
+        if: ${{ inputs.tag != '' }}
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.event.inputs.tag }}
-          name: ${{ github.event.inputs.tag }}
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
           body_path: release-notes.md
           files: |
             PiliPlus_windows_*_arm64_portable.zip

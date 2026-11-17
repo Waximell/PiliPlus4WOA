@@ -4,11 +4,23 @@ name: Build
 # 上游原本按平台拆成 android / ios / mac / win_x64 / win_arm64 / linux_x64
 # 六个 workflow，这里只保留 win_arm64，并把触发入口统一留在这个文件。
 #
-# 用法：Actions → Build → Run workflow
-#   - tag 留空：只产出 artifact，不发 Release
-#   - tag 填版本号（如 2.1.2_fix2）：额外创建同名 GitHub Release 并附上安装包
+# 两个入口：
+#   1. 手动：Actions → Build → Run workflow
+#      - tag 留空：只产出 artifact，不发 Release
+#      - tag 填版本号（如 2.1.2_fix2）：额外创建同名 GitHub Release 并附上安装包
+#   2. 被 upstream-sync.yml 调用（workflow_call）：上游有我们还没发过的新
+#      release 时，它带 tag 直接调这个文件，本文件内容与手动触发时完全一致。
+#      这就是为什么下面统一用 inputs.tag 而不是 github.event.inputs.tag
+#      —— 后者的值取决于「调用方的」事件，被 push 触发的工作流调用时永远是空的。
 on:
     workflow_dispatch:
+        inputs:
+            tag:
+                description: "tag"
+                required: false
+                default: ""
+                type: string
+    workflow_call:
         inputs:
             tag:
                 description: "tag"
@@ -25,4 +37,4 @@ jobs:
         # 少了这行，MSIX 那一步会静默降级成「只打包不签名」。
         secrets: inherit
         with:
-            tag: ${{ github.event.inputs.tag }}
+            tag: ${{ inputs.tag }}

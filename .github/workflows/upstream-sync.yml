@@ -1,0 +1,97 @@
+name: Upstream sync → Release
+
+# 只做一件事：判断「这次推送里，上游是否有我们还没发过的 release」，需要就去
+# 调用 build.yml 发新版，不需要就什么也不做。
+#
+# 触发方式是被动的：你把上游合并进 main 之后 push，GitHub 用这个 push 事件叫我，
+# 我不轮询、不设定时任务。所以：
+#   - 上游发了 release 但你没同步 → 没有 push → 不会触发（符合预期）
+#   - 你同步了但两次同步之间上游没有新 release → 触发，但比较结果是不需要，空跑（几秒）
+#
+# 判定逻辑（compare 作业）：取上游 release tag 的最大版本 vs 我们自己最新 release
+# 的 tag（去掉 -woa 后缀）比较；只有上游更大时才发。发出来的 tag = 上游 tag + "-woa"，
+# 与手工发的 2.2.1-woa 保持同一套命名。
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+# 调用的 reusable workflow 需要 contents: write 才能创建 Release / 打 tag。
+permissions:
+    contents: write
+
+jobs:
+    compare:
+        name: Compare with upstream
+        runs-on: ubuntu-latest
+        outputs:
+            release: ${{ steps.cmp.outputs.release }}
+            tag: ${{ steps.cmp.outputs.tag }}
+        steps:
+            - name: Compare upstream releases with ours
+              id: cmp
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  UPSTREAM_REPO: Kepler16f/PiliPlus4WOA
+              run: |
+                  set -euo pipefail
+
+                  # 上游所有 release 的 tag，按版本排序取最大
+                  upstream=$(gh api "repos/$UPSTREAM_REPO/releases?per_page=100" \
+                      --jq '.[].tag_name' | sort -V | tail -n1)
+
+                  # 我们自己所有 release 的 tag，去掉 -woa 后缀再比较
+                  ours=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+                      --jq '.[].tag_name' | sed 's/-woa$//' | sort -V | tail -n1)
+
+                  upstream=${upstream:-0}
+                  ours=${ours:-0}
+
+                  echo "upstream latest release: $upstream"
+                  echo "our latest release:      $ours"
+
+                  if [ "$upstream" = "0" ]; then
+                      echo "upstream 没有 release，跳过"
+                      echo "release=false" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+
+                  # sort -V 取两者中的较大者；相等说明我们已经发过这一版
+                  newest=$(printf '%s\n%s\n' "$upstream" "$ours" | sort -V | tail -n1)
+                  if [ "$newest" = "$upstream" ] && [ "$upstream" != "$ours" ]; then
+                      tag="${upstream}-woa"
+                      if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+                          echo "release $tag 已存在，跳过"
+                          echo "release=false" >> "$GITHUB_OUTPUT"
+                      else
+                          echo "需要发新版：$tag"
+                          echo "release=true" >> "$GITHUB_OUTPUT"
+                          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+                      fi
+                  else
+                      echo "上游没有比我们更新的 release，跳过"
+                      echo "release=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Summary
+              shell: bash
+              env:
+                  NEED: ${{ steps.cmp.outputs.release }}
+                  TAG: ${{ steps.cmp.outputs.tag }}
+              run: |
+                  if [ "$NEED" = "true" ]; then
+                      echo "将调用 Build 发布 $TAG" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      echo "无需发布，本次仅比较。" >> "$GITHUB_STEP_SUMMARY"
+                  fi
+
+    release:
+        name: Build and release
+        needs: compare
+        if: needs.compare.outputs.release == 'true'
+        permissions: write-all
+        uses: ./.github/workflows/build.yml
+        with:
+            tag: ${{ needs.compare.outputs.tag }}
+        secrets: inherit
