@@ -1,9 +1,7 @@
-此分发随上游 main 编译，为 {{VERSION}}
+此分发随上游main编译，为{{VERSION}}
 
-本仓库未对项目源码做调整，仅添加并运行 WoA Workflow。
-
-核心内容为向 runner 内拉入官方 Flutter 并指定 aarch64，并简单校验。
+本仓库未对项目源码做调整，仅对Workflow添加打包msix流程。
 
 经初步测试与上游行为未发现偏离。
 
-msix 签名为我自行生成的密钥，不保证私钥安全，非常不建议信任，请务必使用上游仓库 https://github.com/Kepler16f/PiliPlus4WOA/releases 的最新构建。
+msix签名为我自行生成的密钥，不保证私钥安全，非常不建议信任，如非必要请务必使用https://github.com/Kepler16f/PiliPlus4WOA/releases

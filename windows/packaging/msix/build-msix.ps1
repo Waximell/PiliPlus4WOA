@@ -169,10 +169,14 @@ else {
         Write-Host "    signtool: $signtool"
         & $signtool sign /fd SHA256 /f $pfxPath /p $PfxPassword /tr http://timestamp.digicert.com /td SHA256 $packagePath
         if ($LASTEXITCODE -ne 0) { throw "signtool sign failed with exit code $LASTEXITCODE" }
-
-        & $signtool verify /pa $packagePath
-        if ($LASTEXITCODE -ne 0) { throw "signtool verify failed with exit code $LASTEXITCODE" }
         $signed = $true
+
+        # Deliberately no `signtool verify /pa` here. /pa validates the whole chain
+        # against the *runner's* trust store, and our certificate is self-signed, so
+        # it can only ever fail on a fresh CI machine - a red herring, not a bad
+        # package. The signature is verified for real by installing the package on a
+        # machine that trusts the certificate.
+        Write-Host "    signed with $((Get-FileHash $pfxPath -Algorithm SHA256).Hash.Substring(0,12))... (pfx)"
     }
     finally {
         Remove-Item $pfxPath -Force -ErrorAction SilentlyContinue

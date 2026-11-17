@@ -155,8 +155,10 @@ jobs:
       - name: Build and sign MSIX
         # Packer script: windows/packaging/msix/build-msix.ps1
         # The package is always ARM64 (ProcessorArchitecture="arm64" in the manifest,
-        # payload built for ARM64). MSIX_PFX_BASE64 / MSIX_PFX_PASSWORD hold the
-        # signing certificate; without them the .msix is packed but left unsigned.
+        # MSIX_PFX_BASE64 / MSIX_PFX_PASSWORD hold the signing certificate. They are
+        # mandatory: an unsigned .msix cannot be installed, so the script fails loudly
+        # instead of shipping one. build.yml must pass `secrets: inherit` for these to
+        # arrive here at all (a reusable workflow does not get them automatically).
         id: msix
         shell: pwsh
         env:
