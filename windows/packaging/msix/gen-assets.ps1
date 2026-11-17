@@ -82,6 +82,9 @@ $targetSizes = 16, 20, 24, 30, 32, 36, 40, 44, 48, 60, 64, 72, 80, 96, 256
 foreach ($s in $targetSizes) {
     Save-Logo -Width $s -Height $s -Fill $platedFill -Name "Square44x44Logo.targetsize-$s.png"
     Save-Logo -Width $s -Height $s -Fill $unplatedFill -Name "Square44x44Logo.targetsize-${s}_altform-unplated.png"
+    # lightunplated: the variant Windows asks for on a light taskbar. Same picture,
+    # separate file - the shell will not fall back from one alternate form to the other.
+    Save-Logo -Width $s -Height $s -Fill $unplatedFill -Name "Square44x44Logo.targetsize-${s}_altform-lightunplated.png"
 }
 
 # --- DPI scales for the tile-ish surfaces ----------------------------------------

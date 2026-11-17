@@ -72,6 +72,13 @@ jobs:
         run: flutter pub get
         shell: pwsh
 
+      - name: Generate app icon
+        # Overwrites windows/runner/resources/app_icon.ico (Flutter's default blue
+        # logo upstream) before the build, so the icon compiled into piliplus.exe -
+        # window title bar, Alt-Tab, desktop shortcut - matches the MSIX identity.
+        shell: pwsh
+        run: windows/packaging/msix/gen-ico.ps1
+
       - name: Build Windows ARM64
         run: |
           # CMake 4.x policy compatibility is handled in windows/CMakeLists.txt

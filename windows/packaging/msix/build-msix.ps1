@@ -129,6 +129,55 @@ try {
     # makeappx requires UTF-8 (with or without BOM) for the manifest.
     [System.IO.File]::WriteAllText((Join-Path $stage 'AppxManifest.xml'), $manifest, (New-Object System.Text.UTF8Encoding $false))
 
+    # --- resources.pri ------------------------------------------------------------
+    # makeappx only compresses files; it does NOT index resource variants. The shell
+    # resolves the logo by TargetSize / AlternateForm through MRT, and that index is
+    # resources.pri. Without it the `..._altform-unplated.png` files are just oddly
+    # named pictures: Windows cannot see them, falls back to the plated 44x44 image,
+    # paints the accent-coloured plate itself and rescales - the classic "blue square
+    # + blurry icon" in the taskbar and Start menu.
+    $priConfig = Join-Path $stage 'priconfig.xml'
+    $priPath = Join-Path $stage 'resources.pri'
+    $priDump = Join-Path ([System.IO.Path]::GetTempPath()) ("piliplus-pri-" + [guid]::NewGuid().ToString('N') + ".xml")
+    $manifestPath = Join-Path $stage 'AppxManifest.xml'
+
+    $makepri = Find-SdkTool 'makepri.exe'
+    Write-Step "Indexing resources ($([IO.Path]::GetFileName($makepri)))"
+    Write-Host "    makepri: $makepri"
+
+    & $makepri createconfig /cf $priConfig /dq zh-CN /o | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "makepri createconfig failed with exit code $LASTEXITCODE" }
+
+    & $makepri new /pr $stage /cf $priConfig /of $priPath /in $manifestPath /o | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "makepri new failed with exit code $LASTEXITCODE" }
+    if (-not (Test-Path $priPath)) { throw "makepri did not produce resources.pri" }
+
+    # Self-check: a previous "looks right but nothing is indexed" package is exactly
+    # the failure mode we are guarding against here, so verify the variants landed.
+    & $makepri dump /if $priPath /of $priDump /o | Out-Null
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $priDump)) { throw "makepri dump failed with exit code $LASTEXITCODE" }
+
+    $dump = Get-Content $priDump -Raw
+    $qualifierLines = @($dump -split "`r?`n" | Where-Object { $_ -match 'AlternateForm Qualifiers|TargetSize Qualifiers' })
+    foreach ($line in $qualifierLines) { Write-Host "    $($line.Trim())" }
+
+    $unplatedEntries = ([regex]::Matches($dump, 'altform-unplated', 'IgnoreCase')).Count
+    if (-not ($dump -match 'unplated' -and $dump -match 'lightunplated')) {
+        throw "resources.pri does not list the unplated alternate forms - the shell would fall back to a plated icon."
+    }
+    if ($unplatedEntries -lt 1) {
+        throw "resources.pri contains no altform-unplated entries."
+    }
+    foreach ($s in 16, 24, 32, 48, 256) {
+        if (-not ($dump -match "targetsize-$s\b")) {
+            throw "resources.pri has no targetsize-$s variant."
+        }
+    }
+    Write-Host "    indexed $unplatedEntries unplated entries, target sizes 16/24/32/48/256 present"
+
+    Remove-Item $priDump -Force -ErrorAction SilentlyContinue
+    Remove-Item $priConfig -Force -ErrorAction SilentlyContinue
+
     Write-Step "Packing $packageName (version $msixVersion, ProcessorArchitecture arm64)"
     $makeappx = Find-SdkTool 'makeappx.exe'
     Write-Host "    makeappx: $makeappx"
